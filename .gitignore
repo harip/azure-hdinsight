@@ -1,1 +1,4 @@
 HDILabs*
+/.sfdx/tools/apex.db
+/.vscode/launch.json
+/.vscode/settings.json
