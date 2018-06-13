@@ -3,12 +3,12 @@
 
 $configJson = Join-Path -Path $PSScriptRoot -ChildPath "cluster_config.json"
 $configParams= Get-Content -Raw -Path $configJson | ConvertFrom-Json
-$resourceGroup="$configParams.clusterName-rg"
+$resourceGroup="$($configParams.clusterName)-rg"
 
-Connect-AzureRmAccount
+# Get resource group
+$rg=Get-AzureRmResourceGroup -Name $resourceGroup -ErrorAction SilentlyContinue
 
-# Create resource group
-$rg=Get-AzureRmResourceGroup -Name $resourceGroup
-
-
-Write-Host($rg)
+# If resource group does not exist create rg
+if ($rg -eq $null){
+    Write-Host("create rg")
+}
