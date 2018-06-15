@@ -2,6 +2,7 @@
 # This script drops the resource group and creates a new one
 # Todo: create a template and use Save-AzureRmResourceGroupDeploymentTemplate 
 #       HDInsight clusters cannot be exported yet 
+# Todo: format per best practices - https://github.com/PoshCode/PowerShellPracticeAndStyle
 
 $configJson = Join-Path -Path $PSScriptRoot -ChildPath "cluster_config.json"
 $configParams= Get-Content -Raw -Path $configJson | ConvertFrom-Json
@@ -60,7 +61,7 @@ New-AzureRmHDInsightCluster `
     -DefaultStorageContainer $storageContainerName    
 
 
-    
+
 # Function that creates a uniquestring
 # Storage accounts should have unique name always
 # https://blogs.technet.microsoft.com/389thoughts/2017/12/23/get-uniquestring-generate-unique-id-for-azure-deployments/
