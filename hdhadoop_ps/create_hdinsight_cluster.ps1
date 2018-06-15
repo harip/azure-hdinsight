@@ -1,14 +1,71 @@
-# Original version - edX-Microsoft: DAT202.1x
-# https://courses.edx.org/courses/course-v1:Microsoft+DAT202.1x+1T2018a
+# 06/13/2018  
+# This script drops the resource group and creates a new one
+# Todo: create a template and use Save-AzureRmResourceGroupDeploymentTemplate 
+#       HDInsight clusters cannot be exported yet 
 
 $configJson = Join-Path -Path $PSScriptRoot -ChildPath "cluster_config.json"
 $configParams= Get-Content -Raw -Path $configJson | ConvertFrom-Json
-$resourceGroup="$($configParams.clusterName)-rg"
+$clusterName=$configParams.clusterName
+$resourceGroupName="$($configParams.clusterName)-rg"
+$storageAccountName= "storage$(Get-UniqueString -id $clusterName)"
+$storageContainerName= "container$(Get-UniqueString -id $clusterName)"
+$location = $configParams.location
 
-# Get resource group
-$rg=Get-AzureRmResourceGroup -Name $resourceGroup -ErrorAction SilentlyContinue
+Write-Host("DROPPING AND CREATING RESOURCE GROUP - $($resourceGroupName). PLEASE WAIT...")
+$rg=Get-AzureRmResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue
+if ($rg -ne $null){
+    Remove-AzureRmResourceGroup -Name $resourceGroupName -Force
+}
+New-AzureRmResourceGroup -Name $resourceGroupName -Location $location 
 
-# If resource group does not exist create rg
-if ($rg -eq $null){
-    Write-Host("create rg")
+
+Write-Host("CREATING STORAGE ACCOUNT. PLEASE WAIT...") 
+New-AzureRmStorageAccount `
+    -ResourceGroupName $resourceGroupName `
+    -Name $storageAccountName `
+    -Location $location `
+    -SkuName Standard_GRS `
+    -Kind Storage
+
+
+Write-Host("CREATING CONTAINER...") 
+$storageAccountKey=(Get-AzureRmStorageAccountKey -ResourceGroupName $resourceGroupName -AccountName $storageAccountName)[0].Value
+$storageContext = New-AzureStorageContext -StorageAccountName $storageAccountName -StorageAccountKey $storageAccountKey
+$storageContainer=New-AzureStorageContainer -Name $storageContainerName -Context $storageContext -Permission Off
+
+
+
+Write-Host("CREATING HTTP/SSH CREDENTIAL...") 
+$pwd = ConvertTo-SecureString $configParams.clusterPassword -AsPlainText -Force
+$httpCredential = New-Object System.Management.Automation.PSCredential ($configParams.clusterUserName, $pwd)
+$sshCredential = New-Object System.Management.Automation.PSCredential ($configParams.sshUserName, $pwd)
+ 
+
+
+Write-Host("CREATING CLUSTER. PLEASE WAIT...")
+# 1. Cluster Name -> 2. Subscription -> 3. Cluster login name -> 4. Cluster password
+# 5. sshusername -> 6. Resource Group Name -> 7. Cluster type -> 8. OS -> Version
+New-AzureRmHDInsightCluster `
+    -Location $location `
+    -ResourceGroupName $resourceGroupName `
+    -ClusterName $clusterName `
+    -ClusterSizeInNodes $configParams.clusterSizeInNodes `
+    -ClusterType Hadoop `
+    -OSType Linux `
+    -Version 3.5 `
+    -HttpCredential $httpCredential `
+    -SshCredential $sshCredential `
+    -DefaultStorageAccountName $storageAccountName `
+    -DefaultStorageAccountKey $storageAccountKey `
+    -DefaultStorageContainer $storageContainerName    
+
+
+    
+# Function that creates a uniquestring
+# Storage accounts should have unique name always
+# https://blogs.technet.microsoft.com/389thoughts/2017/12/23/get-uniquestring-generate-unique-id-for-azure-deployments/
+function Get-UniqueString ([string]$id, $length=13)
+{
+    $hashArray = (new-object System.Security.Cryptography.SHA512Managed).ComputeHash($id.ToCharArray())
+    -join ($hashArray[1..$length] | ForEach-Object { [char]($_ % 26 + [byte][char]'a') })
 }
