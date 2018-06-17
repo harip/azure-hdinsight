@@ -4,6 +4,9 @@
 #       HDInsight clusters cannot be exported yet 
 # Todo: format per best practices - https://github.com/PoshCode/PowerShellPracticeAndStyle
 
+Import-Module .\azure-ps-helpers.psm1
+
+
 $configJson = Join-Path -Path $PSScriptRoot -ChildPath "cluster_config.json"
 $configParams= Get-Content -Raw -Path $configJson | ConvertFrom-Json
 $clusterName=$configParams.clusterName
@@ -58,15 +61,4 @@ New-AzureRmHDInsightCluster `
     -SshCredential $sshCredential `
     -DefaultStorageAccountName $storageAccountName `
     -DefaultStorageAccountKey $storageAccountKey `
-    -DefaultStorageContainer $storageContainerName    
-
-
-
-# Function that creates a uniquestring
-# Storage accounts should have unique name always
-# https://blogs.technet.microsoft.com/389thoughts/2017/12/23/get-uniquestring-generate-unique-id-for-azure-deployments/
-function Get-UniqueString ([string]$id, $length=13)
-{
-    $hashArray = (new-object System.Security.Cryptography.SHA512Managed).ComputeHash($id.ToCharArray())
-    -join ($hashArray[1..$length] | ForEach-Object { [char]($_ % 26 + [byte][char]'a') })
-}
+    -DefaultStorageContainer $storageContainerName   
